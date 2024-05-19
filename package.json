@@ -1,6 +1,6 @@
 {
   "name": "minipotato-bot-by-eoi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MiniPotato Bot by EOi",
   "main": "main.mjs",
   "scripts": {
