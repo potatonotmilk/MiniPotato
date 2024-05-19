@@ -1,6 +1,6 @@
 {
   "name": "minipotato-bot-by-eoi",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "MiniPotato Bot by EOi",
   "main": "main.mjs",
   "scripts": {
@@ -12,6 +12,9 @@
     "sequelize-cli": "^6.6.2",
     "sqlite3": "^5.1.7",
     "express": "^4.19.2",
+    "rss-parser": "^3.13.0",
+    "@gonetone/get-youtube-id-by-url": "^1.0.1",
+    "youtubei": "^1.4.1"
   },
   "engines": {
     "node": "16.x"
