@@ -15,10 +15,14 @@ import { Client as Youtubei, MusicClient } from "youtubei";
 
 const youtubei = new Youtubei();
 
-
+// 🔽 POSTカウントとExpressの起動
 let postCount = 0;
 const app = express();
-app.listen(3000);
+const PORT = process.env.PORT || 8000; // KoyebはPORT=8000を期待
+app.listen(PORT, () => {
+  console.log(`Express server is running on port ${PORT}`);
+});
+
 app.post('/', function(req, res) {
   console.log(`Received POST request.`);
   
@@ -29,11 +33,13 @@ app.post('/', function(req, res) {
   }
   
   res.send('POST response by glitch');
-})
+});
+
 app.get('/', function(req, res) {
   res.send('<a href="https://note.com/exteoi/n/n0ea64e258797</a> に解説があります。');
-})
+});
 
+// 🔽 Discord bot クライアント設定
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -86,18 +92,26 @@ client.on("messageCreate", async (message) => {
 });
 
 client.on("ready", async () => {
-  await client.user.setActivity('🥔', { type: ActivityType.Custom, state: "🥔を栽培中" });
+  await client.user.setActivity('テレビ', { type: ActivityType.Watching });
   console.log(`${client.user.tag} がログインしました！`);
 });
 
+// 🔽 DBモデル同期と起動
 Notification.sync({ alter: true });
 YoutubeFeeds.sync({ alter: true });
 YoutubeNotifications.sync({ alter: true });
 
 CommandsRegister();
+
+// 🔽 トークンチェック
+if (!process.env.TOKEN) {
+  console.error("Discord TOKEN が設定されていません。Koyebの環境変数に設定してください。");
+  process.exit(1);
+}
+
 client.login(process.env.TOKEN);
 
-
+// 🔽 YouTube Feed チェック処理
 async function trigger() {
   const youtubeNofications = await YoutubeNotifications.findAll({
     attributes: [
@@ -112,41 +126,39 @@ async function trigger() {
 }
 
 async function checkFeed(channelFeedUrl) {
-  
   const youtubeFeed = await YoutubeFeeds.findOne({
     where: {
       channelFeedUrl: channelFeedUrl,
     },
   });
-  
+
   const checkedDate = new Date(youtubeFeed.channelLatestUpdateDate);
   let latestDate = new Date(youtubeFeed.channelLatestUpdateDate);
-  
+
   const feed = await parser.parseURL(channelFeedUrl);
   const videos = feed.items.map(i => {
     const now = new Date(i.isoDate);
-    
     if (now > checkedDate) {
       if (now > latestDate) {
-        latestDate = now
+        latestDate = now;
       }
       return i;
     }
   });
-  
+
   const notifications = await YoutubeNotifications.findAll({
     where: {
       channelFeedUrl: channelFeedUrl,
     },
   });
+
   const youtubeChannelId = channelFeedUrl.split('=').at(1);
-  //const youtubeChannel = await youtubei.getChannel(youtubeChannelId);
-  
+
   videos.forEach(async v => {
     if (!v) return;
     const youtubeVideolId = v.link.split('=').at(1);
     const youtubeVideo = await youtubei.getVideo(youtubeVideolId);
-    
+
     const embed = new EmbedBuilder()
       .setColor(0xcd201f)
       .setAuthor({ name: v.author, url: `https://www.youtube.com/channel/${youtubeChannelId}`})
@@ -155,15 +167,13 @@ async function checkFeed(channelFeedUrl) {
       .setDescription(youtubeVideo.description)
       .setImage(youtubeVideo.thumbnails.best)
       .setTimestamp(new Date(v.isoDate));
-    
-    //.setThumbnail(youtubeChannel.thumbnails.best)
 
-    notifications.forEach( n => {
+    notifications.forEach(n => {
       const channel = client.channels.cache.get(n.textChannelId);
-      channel.send({ embeds: [embed] });
+      if (channel) channel.send({ embeds: [embed] });
     });
   });
-  
+
   YoutubeFeeds.update(
     { channelLatestUpdateDate: latestDate.toISOString() },
     {
