@@ -12,26 +12,22 @@ import Parser from 'rss-parser';
 const parser = new Parser();
 
 import { Client as Youtubei, MusicClient } from "youtubei";
-
 const youtubei = new Youtubei();
 
-// 🔽 POSTカウントとExpressの起動
 let postCount = 0;
 const app = express();
-const PORT = process.env.PORT || 8000; // KoyebはPORT=8000を期待
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Express server is running on port ${PORT}`);
 });
 
 app.post('/', function(req, res) {
   console.log(`Received POST request.`);
-  
   postCount++;
   if (postCount == 10) {
     trigger();
     postCount = 0;
   }
-  
   res.send('POST response by glitch');
 });
 
@@ -39,7 +35,6 @@ app.get('/', function(req, res) {
   res.send('<a href="https://note.com/exteoi/n/n0ea64e258797</a> に解説があります。');
 });
 
-// 🔽 Discord bot クライアント設定
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -57,12 +52,22 @@ const commandFolders = fs.readdirSync(categoryFoldersPath);
 for (const folder of commandFolders) {
   const commandsPath = path.join(categoryFoldersPath, folder);
   const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".mjs"));
-  
+
   for (const file of commandFiles) {
     const filePath = path.join(commandsPath, file);
-    import(filePath).then((module) => {
-      client.commands.set(module.data.name, module);
-    });
+    try {
+      const module = await import(filePath);
+      const command = module.default;
+
+      if (!command?.data?.name) {
+        console.warn(`⚠️ 無効なコマンドファイル: ${file}（data.name が見つかりません）`);
+        continue;
+      }
+
+      client.commands.set(command.data.name, command);
+    } catch (err) {
+      console.error(`❌ コマンド読み込み失敗: ${file}`, err);
+    }
   }
 }
 
@@ -73,22 +78,25 @@ const handlerFiles = fs.readdirSync(handlersPath).filter((file) => file.endsWith
 
 for (const file of handlerFiles) {
   const filePath = path.join(handlersPath, file);
-  import(filePath).then((module) => {
+  try {
+    const module = await import(filePath);
     handlers.set(file.slice(0, -4), module);
-  });
+  } catch (err) {
+    console.error(`❌ ハンドラー読み込み失敗: ${file}`, err);
+  }
 }
 
 client.on("interactionCreate", async (interaction) => {
-  await handlers.get("interactionCreate").default(interaction);
+  await handlers.get("interactionCreate")?.default(interaction);
 });
 
 client.on("voiceStateUpdate", async (oldState, newState) => {
-  await handlers.get("voiceStateUpdate").default(oldState, newState);
+  await handlers.get("voiceStateUpdate")?.default(oldState, newState);
 });
 
 client.on("messageCreate", async (message) => {
   if (message.author.id == client.user.id || message.author.bot) return;
-  await handlers.get("messageCreate").default(message);
+  await handlers.get("messageCreate")?.default(message);
 });
 
 client.on("ready", async () => {
@@ -96,14 +104,12 @@ client.on("ready", async () => {
   console.log(`${client.user.tag} がログインしました！`);
 });
 
-// 🔽 DBモデル同期と起動
 Notification.sync({ alter: true });
 YoutubeFeeds.sync({ alter: true });
 YoutubeNotifications.sync({ alter: true });
 
 CommandsRegister();
 
-// 🔽 トークンチェック
 if (!process.env.TOKEN) {
   console.error("Discord TOKEN が設定されていません。Koyebの環境変数に設定してください。");
   process.exit(1);
@@ -111,7 +117,6 @@ if (!process.env.TOKEN) {
 
 client.login(process.env.TOKEN);
 
-// 🔽 YouTube Feed チェック処理
 async function trigger() {
   const youtubeNofications = await YoutubeNotifications.findAll({
     attributes: [
