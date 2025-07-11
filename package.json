@@ -3,6 +3,7 @@
   "version": "0.1.2",
   "description": "MiniPotato Bot by EOi",
   "main": "main.mjs",
+  "type": "module",
   "scripts": {
     "start": "node main.mjs"
   },
@@ -20,11 +21,14 @@
     "node": "16.x"
   },
   "repository": {
-    "url": "https://glitch.com/edit/#!/minipotato-bot-by-eoi"
+    "type": "git",
+    "url": "https://github.com/potatonotmilk/MiniPotato"
   },
   "license": "MIT",
   "keywords": [
-    "node",
-    "glitch"
+    "discord",
+    "bot",
+    "koyeb",
+    "node"
   ]
 }
