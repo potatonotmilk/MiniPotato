@@ -1,42 +1,48 @@
-import fs from 'fs';
-import path from 'path';
-import { REST, Routes } from 'discord.js';
+import fs from "fs";
+import path from "path";
+import { REST, Routes } from "discord.js";
+import dotenv from "dotenv";
+dotenv.config();
 
-const commands = [];
-const foldersPath = path.join(process.cwd(), 'commands');
-const commandFolders = fs.readdirSync(foldersPath);
+export default async function registerCommands() {
+  const commands = [];
 
-export default async() => {
+  const categoryFoldersPath = path.join(process.cwd(), "commands");
+  const commandFolders = fs.readdirSync(categoryFoldersPath);
+
   for (const folder of commandFolders) {
-    const commandsPath = path.join(foldersPath, folder);
-    const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.mjs'));
+    const commandsPath = path.join(categoryFoldersPath, folder);
+    const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".mjs"));
+
     for (const file of commandFiles) {
       const filePath = path.join(commandsPath, file);
-      await import(filePath).then(module => {
-        commands.push(module.data.toJSON());
-      });
+
+      try {
+        const module = await import(filePath);
+        const command = module.default;
+
+        if (!command?.data?.toJSON) {
+          console.warn(`⚠️ 無効なコマンドファイル: ${file}（data.toJSON が見つかりません）`);
+          continue;
+        }
+
+        commands.push(command.data.toJSON());
+      } catch (err) {
+        console.error(`❌ コマンド登録エラー: ${file}`, err);
+      }
     }
   }
 
-  const rest = new REST().setToken(process.env.TOKEN);
+  const rest = new REST({ version: "10" }).setToken(process.env.TOKEN);
 
-  (async () => {
-    try {
-      console.log(`[INIT] ${commands.length}つのスラッシュコマンドを更新します。`);
-
-      const data = await rest.put(
-        Routes.applicationCommands(process.env.APPLICATION_ID),
-        { body: commands },
-      );
-      
-      const dataGuild = await rest.put(
-        Routes.applicationCommands(process.env.APPLICATION_ID),
-        { body: commands },
-      );
-
-      console.log(`[INIT] ${commands.length}つのスラッシュコマンドを更新しました。`);
-    } catch (error) {
-      console.error(error);
-    }
-  })();
-};
+  try {
+    console.log("🔄 コマンドを登録中...");
+    await rest.put(
+      Routes.applicationCommands(process.env.CLIENT_ID),
+      { body: commands }
+    );
+    console.log("✅ 登録完了！");
+  } catch (error) {
+    console.error("❌ コマンド登録に失敗:", error);
+  }
+}
