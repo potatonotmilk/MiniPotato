@@ -1,9 +1,9 @@
-const {
+import {
   SlashCommandBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require("discord.js");
+} from ("discord.js");
 
 module.exports = {
   data: new SlashCommandBuilder()
